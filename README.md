@@ -48,7 +48,26 @@ All settings are in `config.toml`. Secrets go in `.env` (copy `.env.example`).
 1. **Real models.** Set `[llm] mode = "live"` and put `ANTHROPIC_API_KEY` in `.env`. Each task has its own model under `[llm.tasks.*]`. `daily_budget_usd` stops all paid calls for the day once reached.
 2. **Real trends.** Put a free `YOUTUBE_API_KEY` in `.env`. TikTok has no free public trends API, so TikTok trends come in through the **Add** tab for now.
 3. **Real emails.** Fill in `[outreach]` with your real name, business and postal address, add SMTP settings to `.env`, then set `[outreach] live = true`. Keep `daily_cap` low at first.
-4. **Real posting.** Not connected yet. Uploading needs the YouTube Data API with OAuth and TikTok's Content Posting API, which requires TikTok to approve your app. Until then, upload the files from `var/outbox/posts` yourself.
+4. **Real YouTube posting.** Follow "Posting to YouTube" below. TikTok posts are still saved to `var/outbox/posts` for you to upload, because TikTok must approve an app before it allows uploads.
+
+## Posting to YouTube
+
+Approved Shorts are uploaded as **private**. You check each one and make it public in YouTube Studio.
+
+One-time setup, about 15 minutes:
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com), create a project, and enable **YouTube Data API v3**.
+2. Under **OAuth consent screen**, choose *External*, fill in the app name and your email, and add your own Google account under **Test users**.
+3. Under **Credentials**, create an **OAuth client ID** of type **Desktop app**. Download the JSON file and save it as `secrets/youtube_client.json` in this folder. The `secrets/` folder is never committed.
+4. Run `python -m factory youtube-login`. A browser opens: sign in with the account that owns your channel and allow uploads.
+5. In `config.toml`, set `[publishing.youtube] live = true`, then start the factory again.
+
+Things to know:
+
+- **Uploads stay private until Google audits your project.** Google locks videos uploaded by unaudited API projects to private. Since you publish by hand anyway this does not stop you, but if you later want `privacy = "public"`, apply for the free YouTube API audit first.
+- **The sign-in expires every 7 days** while the consent screen is in *Testing* mode. When the Acc Manager pauses with "sign-in expired", run `python -m factory youtube-login` again and press Resume.
+- **There is a daily upload limit** on the free API quota. When it is reached the Acc Manager pauses and keeps the video; press Resume the next day.
+- A video is never uploaded twice: the YouTube link is saved on the card the moment the upload finishes.
 
 ## Running models on your own GPU (RTX 5060, 8 GB)
 
@@ -76,7 +95,7 @@ They run both lines end to end in test mode, plus the daily limits, the budget s
 
 ## Not built yet
 
-- Live upload to YouTube and TikTok (see above).
+- Live upload to TikTok (needs TikTok's app approval).
 - Fetching replies from your mailbox automatically (save them into `var/inbox` for now).
 - Judging *poor-quality* 3D on a page (it only detects whether 3D exists).
 - Voice-over and real footage in videos. `factory/video.py` is the one file to replace.

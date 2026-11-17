@@ -319,7 +319,7 @@ function lineOf(ev){
   const j = ST.jobs.find(x => x.id === ev.job_id); return j ? j.line : null;
 }
 function onEvent(ev, animate){
-  if (ev.room in agents && ["picked", "moved", "found", "skipped", "reply", "error"].includes(ev.kind))
+  if (ev.room in agents && ["picked", "moved", "found", "skipped", "reply", "error", "uploaded"].includes(ev.kind))
     bubbles[ev.room] = {text: ev.message.replace(/^picked up /, "on it: "), until: performance.now() + 3200};
   if (!animate || reduced || !ST) return;
   const line = lineOf(ev);

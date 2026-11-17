@@ -98,6 +98,13 @@ class DB:
             self._q("UPDATE jobs SET status=?, data=?, worker=NULL, updated=? WHERE id=?",
                     (status, json.dumps(data), time.time(), job_id))
 
+    def patch(self, job_id, patch):
+        """Save data on a card without moving it, e.g. a finished upload."""
+        with self.lock:
+            job = self.get_job(job_id)
+            job["data"].update(patch)
+            self._q("UPDATE jobs SET data=?, updated=? WHERE id=?", (json.dumps(job["data"]), time.time(), job_id))
+
     def jobs(self, active_only=True, limit=300):
         sql = "SELECT * FROM jobs"
         if active_only:

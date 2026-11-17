@@ -155,17 +155,36 @@ class ReviewRoom(Room):
 class AccManager(Room):
     name, label, line, takes = "acc_manager", "Acc Manager", "shorts", "ready"
 
+    def uploader(self):
+        if self.ctx.youtube is None:
+            from ..publish.youtube import YouTubeUploader
+            self.ctx.youtube = YouTubeUploader(self.cfg)
+        return self.ctx.youtube
+
     def work(self, job):
-        if self.cfg.get("publishing.live"):
-            raise Pause("live publishing is not connected yet. It needs the YouTube Data API (OAuth) and "
-                        "TikTok Content Posting API (app approval). Set [publishing] live = false.")
+        from ..publish.youtube import UploadError
         d = job["data"]
         s = d["script"]
         tags = " ".join(s["hashtags"])
-        posts = {}
+        video = self.cfg.var / "videos" / d["video"]
+        posts, done = dict(d.get("posts", {})), []
         for platform in self.cfg.get("channel.platforms", []):
             if platform == "youtube_shorts":
-                post = {"title": s["caption"][:90] + " #Shorts", "description": f"{s['hook']}\n\n{tags}"}
+                title = s["caption"][:90] + " #Shorts"
+                description = f"{s['hook']}\n\n{tags}"
+                if self.cfg.get("publishing.youtube.live"):
+                    if "youtube" not in posts:          # never upload the same video twice
+                        try:
+                            result = self.uploader().upload(video, title, description, s["hashtags"])
+                        except UploadError as e:
+                            raise Pause(str(e)) from e
+                        posts["youtube"] = result
+                        self.db.patch(job["id"], {"posts": posts})
+                        self.log("uploaded", f"uploaded to YouTube as {result['privacy']}: {result['url']}",
+                                 job["id"], **result)
+                    done.append(f"YouTube ({posts['youtube']['privacy']}: {posts['youtube']['url']})")
+                    continue
+                post = {"title": title, "description": description}
             elif platform == "tiktok":
                 post = {"caption": f"{s['caption']} {tags}"[:2200]}
             else:
@@ -173,7 +192,7 @@ class AccManager(Room):
             post.update(platform=platform, video=d["video"], prepared=time.strftime("%Y-%m-%d %H:%M"))
             path = self.cfg.var / "outbox/posts" / f"job_{job['id']}_{platform}.json"
             path.write_text(json.dumps(post, indent=2))
+            shutil.copy(video, self.cfg.var / "outbox/posts" / d["video"])
             posts[platform] = path.name
-        shutil.copy(self.cfg.var / "videos" / d["video"], self.cfg.var / "outbox/posts" / d["video"])
-        names = " and ".join(p.replace("_", " ").title() for p in posts)
-        return "posted", {"posts": posts}, f"prepared posts for {names} in var/outbox/posts (test mode)"
+            done.append(f"{platform.replace('_', ' ').title()} (saved to var/outbox/posts for you to upload)")
+        return "posted", {"posts": posts}, "posted: " + "; ".join(done)

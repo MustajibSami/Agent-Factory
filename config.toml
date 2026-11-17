@@ -19,8 +19,13 @@ height = 1280
 fps = 24
 seconds_per_line = 3.5
 
-[publishing]
-live = false                  # false = write the post to var/outbox/posts instead of uploading
+[publishing.youtube]
+live = false                  # true = upload approved Shorts to YouTube (run: python -m factory youtube-login first)
+privacy = "private"           # "private" = you make each video public in YouTube Studio. Or "unlisted" / "public"
+category_id = "22"            # 22 = People & Blogs, 28 = Science & Technology, 26 = Howto & Style
+client_secrets = "secrets/youtube_client.json"
+token = "secrets/youtube_token.json"
+# TikTok posts are always saved to var/outbox/posts: TikTok must approve an app before it allows uploads.
 
 [clients]
 prospects_file = "data/prospects.csv"

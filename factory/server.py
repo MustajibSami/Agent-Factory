@@ -52,7 +52,7 @@ def create_app(factory: Factory | None = None, run_workers: bool = True) -> Fast
                            (day_start(),)).fetchall()
         return {
             "mode": cfg.get("llm.mode", "mock"),
-            "publishing_live": bool(cfg.get("publishing.live")),
+            "publishing_live": bool(cfg.get("publishing.youtube.live")),
             "outreach_live": bool(cfg.get("outreach.live")),
             "budget": float(cfg.get("factory.daily_budget_usd", 0)),
             "cost_today": round(db.cost_today(), 4),

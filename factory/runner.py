@@ -17,6 +17,7 @@ class Context:
     cfg: Config
     db: DB
     llm: LLM
+    youtube: object = None   # set lazily by the Acc Manager; tests put a fake here
 
 
 class Factory:

@@ -18,7 +18,7 @@ def fac(tmp_path, monkeypatch):
     cfg = config.load(tmp_path)
     cfg.set("factory.pace_seconds", 0)
     cfg.set("llm.mode", "mock")
-    cfg.set("publishing.live", False)
+    cfg.set("publishing.youtube.live", False)
     cfg.set("outreach.live", False)
     cfg.set("video.width", 180)
     cfg.set("video.height", 320)
