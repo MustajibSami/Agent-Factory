@@ -39,6 +39,19 @@ def answer(task: str, c: dict) -> dict:
             "hashtags": ["#3d", "#productdesign", "#blender", "#shorts"],
         }
 
+    if task == "write_offer" and c.get("kind") == "creator":
+        return {
+            "subject": "3D visuals for your reels",
+            "body": (
+                f"Hi {c['company']},\n\n"
+                "I make 3D visuals for creators: product spins, animated logos and short 3D scenes "
+                "that stand out in a feed. One idea for your page: a 5-second 3D intro built around "
+                "what you already post.\n\n"
+                "I would be glad to make a free short sample so you can see it before deciding anything. "
+                "Would that be useful?"
+            ),
+        }
+
     if task == "write_offer":
         return {
             "subject": f"A 3D model of your {c['product']}",

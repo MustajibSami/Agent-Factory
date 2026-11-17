@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS events(
   message TEXT, cost REAL DEFAULT 0, data TEXT);
 CREATE TABLE IF NOT EXISTS rooms(name TEXT PRIMARY KEY, paused INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS suppression(email TEXT PRIMARY KEY, ts REAL);
+CREATE TABLE IF NOT EXISTS contacts(email TEXT PRIMARY KEY, job_id INTEGER);
 """
 
 # Statuses where a card has left the factory floor.
@@ -143,6 +144,10 @@ class DB:
             args.append(room)
         return self._q(sql, args).fetchone()[0]
 
+    def events_today(self, room, kind):
+        rows = self._q("SELECT * FROM events WHERE ts>=? AND room=? AND kind=?", (day_start(), room, kind)).fetchall()
+        return [{**dict(r), "data": json.loads(r["data"] or "{}")} for r in rows]
+
     def moves_today(self, room, to_status):
         """How many cards this room moved into a status today."""
         rows = self._q("SELECT data FROM events WHERE ts>=? AND room=? AND kind='moved'",
@@ -161,6 +166,12 @@ class DB:
     # --- do-not-contact list ---
     def suppress(self, email):
         self._q("INSERT OR IGNORE INTO suppression(email,ts) VALUES(?,?)", (email.lower(), time.time()))
+
+    def claim_email(self, email, job_id):
+        """One card per email address. True if this card owns the address."""
+        self._q("INSERT OR IGNORE INTO contacts(email, job_id) VALUES(?,?)", (email.lower(), job_id))
+        row = self._q("SELECT job_id FROM contacts WHERE email=?", (email.lower(),)).fetchone()
+        return row["job_id"] == job_id
 
     def is_suppressed(self, email):
         return self._q("SELECT 1 FROM suppression WHERE email=?", (email.lower(),)).fetchone() is not None

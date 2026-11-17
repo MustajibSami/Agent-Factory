@@ -21,10 +21,20 @@ A factory where the workers are AI agents. Each room does one job, job cards mov
 
 | Room | What it does | Runs on |
 |---|---|---|
-| Client Finder | Reads companies from `data/prospects.csv` (or ones you add), skips bad emails, duplicates and the do-not-contact list, then opens each product page and looks for 3D (model-viewer, .glb/.usdz files, Sketchfab, three.js, AR buttons) | plain code |
-| Offer Writer | Drafts a short offer for companies with no 3D, adds your name, address and an opt-out line | mid model (`write_offer`) |
-| **Your desk** | You read the email and approve or reject it | you |
+| Client Finder | Collects leads, finds the email each one **published**, and drops the ones it can't use. Brands: checks the page for 3D (model-viewer, .glb/.usdz files, Sketchfab, three.js, AR buttons). Instagram pages and creators: checks followers and looks for an email in the bio or on their website | plain code |
+| Offer Writer | Drafts a short offer: brands get "a 3D model of your product", creators get "3D visuals for your content". Adds your name, address and an opt-out line | mid model (`write_offer`) |
+| **Your desk** | You read the email, see where the address was found, and approve or reject it | you |
 | Outreach | Sends approved emails within a daily cap. Its reply desk sorts replies saved in `var/inbox`: "stop" goes on the do-not-contact list, interested replies are flagged for you | plain code |
+
+Where leads come from:
+
+- **`data/leads.txt` (free):** paste websites, Instagram links or `@handles`, one per line.
+- **`data/prospects.csv` (free):** rows with company, product, url and email (email optional).
+- **The Add tab** in the view.
+- **Web search (paid, off by default):** set `[clients.search] enabled = true` and add `BRAVE_API_KEY` to `.env`. Searches count toward the daily budget.
+- **Instagram profiles:** with `INSTAGRAM_USER_ID` and `INSTAGRAM_ACCESS_TOKEN` in `.env`, the factory reads public business and creator profiles through Meta's official API. It never scrapes Instagram and never sends DMs.
+
+The factory only uses an email the business or creator published for contact, and it never guesses addresses. Marketplaces (Amazon, Etsy, eBay), Fiverr and Upwork are skipped.
 
 Rooms never talk to each other. Every card is a row in `var/factory.db` with a status; each room picks up cards in its status and moves them on, and every action is written to an event log. The view only draws that database.
 

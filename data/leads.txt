@@ -1,0 +1,8 @@
+# Your free lead list. One per line: a website, an Instagram link, or an @handle.
+# The Client Finder looks for the email each one published, then drafts an offer.
+# The "sample" lines below are fake, for test mode. Delete them when you add real leads.
+sample:pinewood_home.html
+@sample_clayforms
+@sample_tinycandles
+@sample_noemail
+https://instagram.com/sample_studiorender

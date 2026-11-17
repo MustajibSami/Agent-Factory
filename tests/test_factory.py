@@ -66,6 +66,7 @@ def test_shorts_line_end_to_end(fac):
 
 
 def test_clients_wing_end_to_end(fac):
+    fac.cfg.set("clients.leads_file", "data/no_such_file.txt")      # spreadsheet only in this test
     fac.rooms["client_finder"].source()
     titles = statuses(fac, "clients")
     assert len(titles) == 4                                  # duplicate row and invalid email skipped
@@ -105,6 +106,7 @@ def test_reply_desk_sorts_replies(fac):
 
 def test_outreach_daily_cap(fac):
     fac.cfg.set("outreach.daily_cap", 1)
+    fac.cfg.set("clients.leads_file", "data/no_such_file.txt")
     fac.rooms["client_finder"].source()
     drain(fac, "client_finder", "offer_writer")
     for j in fac.db.jobs():

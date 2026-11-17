@@ -77,7 +77,7 @@ dt{color:var(--muted)} dd{margin:0}
 <header>
   <h1>Agent Factory</h1>
   <span class="pill" id="mode">Test mode</span>
-  <div class="meter" title="Money spent on paid models today"><span>Model spend</span><span class="bar"><i id="spendbar"></i></span><span id="spend">$0.00 of $0.00</span></div>
+  <div class="meter" title="Money spent today on paid models and web searches"><span>Spend today</span><span class="bar"><i id="spendbar"></i></span><span id="spend">$0.00 of $0.00</span></div>
   <span class="spacer"></span>
   <span class="stat">Posted today <b id="posted">0</b></span>
   <span class="stat">Emails today <b id="sent">0</b></span>
@@ -105,11 +105,11 @@ dt{color:var(--muted)} dd{margin:0}
         <div class="row"><button class="btn primary" type="submit">Send to Trend Finder</button><span class="msg" id="idea-msg"></span></div>
       </form>
       <form class="card" id="prospect-form">
-        <h3>Add a company to check for 3D</h3>
-        <label for="p-company">Company<input id="p-company" required></label>
-        <label for="p-product">Product<input id="p-product" required></label>
-        <label for="p-url">Product page address<input id="p-url" required type="url" placeholder="https://"></label>
-        <label for="p-email">Contact email<input id="p-email" required type="email"></label>
+        <h3>Add a client lead</h3>
+        <label for="p-url">Website, product page, Instagram link or @handle<input id="p-url" required placeholder="https://… or @pagename"></label>
+        <label for="p-company">Name (optional)<input id="p-company"></label>
+        <label for="p-product">Product (optional)<input id="p-product"></label>
+        <label for="p-email">Email (optional: leave empty and the Client Finder looks for a published one)<input id="p-email" type="email"></label>
         <div class="row"><button class="btn primary" type="submit">Send to Client Finder</button><span class="msg" id="p-msg"></span></div>
       </form>
     </div>
@@ -319,7 +319,7 @@ function lineOf(ev){
   const j = ST.jobs.find(x => x.id === ev.job_id); return j ? j.line : null;
 }
 function onEvent(ev, animate){
-  if (ev.room in agents && ["picked", "moved", "found", "skipped", "reply", "error", "uploaded"].includes(ev.kind))
+  if (ev.room in agents && ["picked", "moved", "found", "skipped", "reply", "error", "uploaded", "searched"].includes(ev.kind))
     bubbles[ev.room] = {text: ev.message.replace(/^picked up /, "on it: "), until: performance.now() + 3200};
   if (!animate || reduced || !ST) return;
   const line = lineOf(ev);
@@ -428,8 +428,10 @@ function renderNeeds(){
         <video controls playsinline preload="metadata" src="/media/${esc(d.video)}" poster="/media/${esc(d.thumb)}"></video>
         <div>${esc((s.hashtags || []).join(" "))}</div><ol>${[s.hook, ...(s.lines || [])].map(l => `<li>${esc(l)}</li>`).join("")}</ol>`;
     } else {
-      body = `<span class="kind">Offer email · ${esc(d.company)}</span><h3>${esc(d.subject)}</h3>
-        <div class="stat">To <b>${esc(d.email)}</b> · page checked: no 3D found</div><pre>${esc(d.body)}</pre>`;
+      const who = d.kind === "creator" ? `Instagram @${esc(d.instagram)}${d.followers != null ? " · " + Number(d.followers).toLocaleString() + " followers" : ""}` : "Brand · page checked: no 3D found";
+      const found = d.found_on === "given" ? "you gave this email" : `email found on: ${esc(d.found_on)}`;
+      body = `<span class="kind">Offer email · ${esc(d.name || d.company)}</span><h3>${esc(d.subject)}</h3>
+        <div class="stat">To <b>${esc(d.email)}</b> · ${who}</div><div class="stat">${found}</div><pre>${esc(d.body)}</pre>`;
     }
     return `<div class="card" data-id="${j.id}">${body}
       <div class="row"><button class="btn primary" data-act="approve">${j.line === "shorts" ? "Approve for posting" : "Approve and send"}</button>
@@ -513,7 +515,9 @@ $("idea-form").addEventListener("submit", async e => {
 });
 $("prospect-form").addEventListener("submit", async e => {
   e.preventDefault(); const m = $("p-msg");
-  try { await api("/api/prospects", {company: $("p-company").value, product: $("p-product").value, url: $("p-url").value, email: $("p-email").value});
+  const where = $("p-url").value.trim(), ig = where.startsWith("@") || where.toLowerCase().includes("instagram.com/");
+  try { await api("/api/prospects", {company: $("p-company").value, product: $("p-product").value,
+          url: ig ? "" : where, instagram: ig ? where : "", email: $("p-email").value});
     m.className = "msg ok"; m.textContent = "Sent to Client Finder"; e.target.reset(); poll(); }
   catch (err) { m.className = "msg bad"; m.textContent = err.message; }
 });

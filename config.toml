@@ -28,7 +28,26 @@ token = "secrets/youtube_token.json"
 # TikTok posts are always saved to var/outbox/posts: TikTok must approve an app before it allows uploads.
 
 [clients]
-prospects_file = "data/prospects.csv"
+prospects_file = "data/prospects.csv"   # rows with company, product, url, email (email optional)
+leads_file = "data/leads.txt"           # free: paste websites, Instagram links or @handles, one per line
+
+[clients.instagram]
+# Reads public business/creator profiles through Meta's official API. Needs INSTAGRAM_USER_ID and
+# INSTAGRAM_ACCESS_TOKEN in .env. Without them, only "sample_" handles and handles you give an email for work.
+min_followers = 1000
+graph_version = "v23.0"
+
+[clients.search]
+# Paid: Brave Search API, about $5 per 1,000 searches. Needs BRAVE_API_KEY in .env.
+enabled = false
+queries_per_day = 5
+cost_per_query = 0.005          # counted in the spend meter and the daily budget
+queries = [
+  "handmade furniture brand shop online",
+  "independent ceramics studio shop",
+  "site:instagram.com product designer small brand",
+  "site:instagram.com 3d product photography alternative",
+]
 
 [outreach]
 live = false                  # false = write .eml files to var/outbox/emails instead of sending

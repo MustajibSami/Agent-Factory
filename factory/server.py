@@ -124,9 +124,9 @@ def create_app(factory: Factory | None = None, run_workers: bool = True) -> Fast
         room = fac.rooms["client_finder"]
         jid = add_prospect(room, {**row, "source": "manual"})
         if not jid:
-            raise HTTPException(422, "need a company, a product page address and a valid email "
-                                     "(or this company is already in the factory)")
-        db.add_event("you", jid, "moved", f"you added {row.get('company')}", data={"to_status": "prospect"})
+            raise HTTPException(422, "need a website or Instagram handle, and the email must be valid if you give "
+                                     "one (or this lead is already in the factory)")
+        db.add_event("you", jid, "moved", f"you added {db.get_job(jid)['title']}", data={"to_status": "prospect"})
         return {"id": jid}
 
     @app.get("/media/{name}")
