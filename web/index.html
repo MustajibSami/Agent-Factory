@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Factory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: the factory floor (canvas) on the left, the control panel on the right; stacked on phones.
+   Look: your whiteboard sketch. Paper ground, blue marker walls, little workers in each room. */
+:root{
+  --paper:#f7f8fa; --panel:#ffffff; --ink:#18232f; --muted:#5d6b79; --line:#d9e0e7;
+  --marker:#0a8fdc; --you:#e8833a; --good:#2e9d5b; --bad:#d2463c;
+  --hand:"Patrick Hand","Comic Sans MS",cursive; --ui:"Inter",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--ui);font-size:14px}
+header{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:10px 16px;border-bottom:2px solid var(--marker);background:var(--panel)}
+h1{font-family:var(--hand);font-weight:400;font-size:28px;margin:0;color:var(--marker);line-height:1}
+.pill{font-size:12px;padding:3px 9px;border-radius:99px;background:#e3f3fd;color:#075f93;font-weight:500}
+.pill.live{background:#fdecdc;color:#8a4a10}
+.meter{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.meter .bar{width:110px;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.meter .bar i{display:block;height:100%;width:0;background:var(--marker);transition:width .4s}
+.meter .bar i.hot{background:var(--bad)}
+.stat{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stat b{color:var(--ink);font-weight:600}
+.spacer{flex:1}
+#offline{display:none;background:var(--bad);color:#fff;padding:8px 16px;font-size:13px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:0;min-height:calc(100vh - 56px)}
+.floor{padding:12px;min-width:0}
+canvas{display:block;width:100%;touch-action:manipulation;cursor:pointer;border-radius:8px}
+.hint{font-size:12px;color:var(--muted);margin:8px 4px 0}
+aside{border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-width:0;max-height:calc(100vh - 56px);position:sticky;top:0}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;white-space:nowrap;border:0;background:none;padding:11px 4px;font:500 13px var(--ui);color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--marker)}
+.tabs .count{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--you);color:#fff;font-size:11px;line-height:18px}
+.tabs .count:empty{display:none}
+.pane{overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px;flex:1}
+.empty{color:var(--muted);text-align:center;padding:30px 10px;line-height:1.5}
+.card{border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.card h3{margin:0;font-size:14px;font-weight:600}
+.card .kind{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.card video{width:100%;max-width:200px;border-radius:6px;background:#000;align-self:center}
+.card pre{white-space:pre-wrap;font:13px/1.5 var(--ui);margin:0;background:var(--paper);padding:10px;border-radius:6px;max-height:260px;overflow:auto}
+.card ol{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;border-radius:6px;font:500 13px var(--ui);cursor:pointer}
+.btn.primary{background:var(--good);border-color:var(--good);color:#fff}
+.btn.danger{color:var(--bad)}
+.btn:focus-visible,input:focus-visible,.tabs button:focus-visible{outline:2px solid var(--marker);outline-offset:2px}
+input{border:1px solid var(--line);border-radius:6px;padding:7px 9px;font:13px var(--ui);min-width:0;flex:1;background:var(--panel);color:var(--ink)}
+label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.log li{display:grid;grid-template-columns:44px 10px minmax(0,1fr);gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;line-height:1.4}
+.log time{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;padding-top:2px}
+.log .dot{width:10px;height:10px;border-radius:50%;margin-top:4px}
+.log .who{font-weight:600}
+.log .err{color:var(--bad)}
+.log .cost{color:var(--muted);font-size:11px}
+.msg{font-size:12px;min-height:16px}
+.msg.ok{color:var(--good)} .msg.bad{color:var(--bad)}
+dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;margin:0;font-size:13px}
+dt{color:var(--muted)} dd{margin:0}
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr}
+  aside{border-left:0;border-top:1px solid var(--line);max-height:none;position:static}
+  .floor{padding:8px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Agent Factory</h1>
+  <span class="pill" id="mode">Test mode</span>
+  <div class="meter" title="Money spent on paid models today"><span>Model spend</span><span class="bar"><i id="spendbar"></i></span><span id="spend">$0.00 of $0.00</span></div>
+  <span class="spacer"></span>
+  <span class="stat">Posted today <b id="posted">0</b></span>
+  <span class="stat">Emails today <b id="sent">0</b></span>
+</header>
+<div id="offline">The factory isn't answering. Is <code>python -m factory</code> still running?</div>
+<div class="layout">
+  <div class="floor">
+    <canvas id="floor" aria-label="Factory floor: rooms with their agents and job cards"></canvas>
+    <p class="hint">Tap a room to see and control it. The orange desk in the Control Room is yours: cards waiting for your approval pile up there.</p>
+  </div>
+  <aside>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="needs" aria-selected="true">Needs you<span class="count" id="needcount"></span></button>
+      <button role="tab" data-tab="room" aria-selected="false">Room</button>
+      <button role="tab" data-tab="log" aria-selected="false">Activity</button>
+      <button role="tab" data-tab="add" aria-selected="false">Add</button>
+    </div>
+    <div class="pane" id="pane-needs"></div>
+    <div class="pane" id="pane-room" hidden></div>
+    <div class="pane" id="pane-log" hidden><ul class="log" id="log"></ul></div>
+    <div class="pane" id="pane-add" hidden>
+      <form class="card" id="idea-form">
+        <h3>Drop in a video idea</h3>
+        <label for="idea-title">Idea or trend<input id="idea-title" required minlength="3" maxlength="200" placeholder="e.g. Sneaker turned into a 3D model in 60 seconds"></label>
+        <div class="row"><button class="btn primary" type="submit">Send to Trend Finder</button><span class="msg" id="idea-msg"></span></div>
+      </form>
+      <form class="card" id="prospect-form">
+        <h3>Add a company to check for 3D</h3>
+        <label for="p-company">Company<input id="p-company" required></label>
+        <label for="p-product">Product<input id="p-product" required></label>
+        <label for="p-url">Product page address<input id="p-url" required type="url" placeholder="https://"></label>
+        <label for="p-email">Contact email<input id="p-email" required type="email"></label>
+        <div class="row"><button class="btn primary" type="submit">Send to Client Finder</button><span class="msg" id="p-msg"></span></div>
+      </form>
+    </div>
+  </aside>
+</div>
+
+<script>
+"use strict";
+// ---------- layout ----------
+const COLORS = {trend_finder:"#e8833a", control_room:"#7c5cff", video_maker:"#e2557b", review_room:"#2bb3a3",
+  acc_manager:"#3a8ee8", client_finder:"#d9a400", offer_writer:"#5aa83c", outreach:"#c4553a", you:"#e8833a"};
+const NAMES = {trend_finder:"Scout", control_room:"Boss", video_maker:"Reel", review_room:"Checky",
+  acc_manager:"Poster", client_finder:"Sniff", offer_writer:"Quill", outreach:"Mailer"};
+const WIDE = {W:1000, H:740, wing:[668,6,326,728], rooms:{
+  trend_finder:[20,20,280,200], video_maker:[330,20,280,200], control_room:[175,270,280,200],
+  acc_manager:[20,520,280,200], review_room:[330,520,280,200],
+  client_finder:[688,32,290,188], offer_writer:[688,275,290,190], outreach:[688,520,290,200]}};
+const TALL = {W:630, H:1250, wing:[6,760,618,484], rooms:{
+  trend_finder:[20,20,280,200], video_maker:[330,20,280,200], control_room:[175,270,280,200],
+  acc_manager:[20,520,280,200], review_room:[330,520,280,200],
+  client_finder:[20,790,280,200], offer_writer:[330,790,280,200], outreach:[175,1030,280,195]}};
+const CORRIDORS = [["trend_finder","control_room"],["video_maker","control_room"],["control_room","acc_manager"],
+  ["control_room","review_room"],["client_finder","offer_writer"],["offer_writer","control_room"],["control_room","outreach"]];
+
+const cv = document.getElementById("floor"), g = cv.getContext("2d");
+let L = WIDE, scale = 1, dpr = 1;
+let ST = null;                 // last /api/state
+let selected = "control_room";
+const agents = {}, flights = [], bubbles = {}, sparkles = [];
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function rect(name){ const r = L.rooms[name]; return {x:r[0], y:r[1], w:r[2], h:r[3]}; }
+function center(name){
+  if (name === "you") return youDesk();
+  const r = rect(name); return {x:r.x + r.w/2, y:r.y + r.h/2};
+}
+function deskPos(name){ const r = rect(name); return {x:r.x + r.w/2 - (name==="control_room"?55:0), y:r.y + 62}; }
+function youDesk(){ const r = rect("control_room"); return {x:r.x + r.w - 62, y:r.y + 62}; }
+function shelfPos(name){ const r = rect(name); return {x:r.x + 22, y:r.y + r.h - 34}; }
+
+function resize(){
+  const box = cv.parentElement.getBoundingClientRect();
+  L = box.width < 700 ? TALL : WIDE;
+  dpr = window.devicePixelRatio || 1;
+  const cssW = box.width - (box.width < 700 ? 16 : 24);
+  scale = cssW / L.W;
+  cv.style.height = (L.H * scale) + "px";
+  cv.width = Math.round(cssW * dpr); cv.height = Math.round(L.H * scale * dpr);
+  wobble.clear();
+  for (const a of Object.values(agents)) { const p = deskPos(a.room); a.x = p.x; a.y = p.y + 30; a.tx = a.x; a.ty = a.y; }
+}
+new ResizeObserver(resize).observe(cv.parentElement);
+
+// ---------- hand-drawn helpers ----------
+const wobble = new Map();
+function seeded(seed){ let s = 0; for (const c of seed) s = (s*31 + c.charCodeAt(0)) >>> 0;
+  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+function sketchRect(key, x, y, w, h, color, width){
+  if (!wobble.has(key)) {
+    const rnd = seeded(key), pts = [];
+    const corners = [[x,y],[x+w,y],[x+w,y+h],[x,y+h],[x,y]];
+    for (let i = 0; i < 4; i++) {
+      const [ax,ay] = corners[i], [bx,by] = corners[i+1];
+      for (let t = 0; t <= 1.0001; t += 0.25) pts.push([ax + (bx-ax)*t + (rnd()-.5)*4, ay + (by-ay)*t + (rnd()-.5)*4]);
+    }
+    wobble.set(key, pts);
+  }
+  const pts = wobble.get(key);
+  g.strokeStyle = color; g.lineWidth = width; g.lineJoin = "round"; g.lineCap = "round";
+  g.beginPath(); pts.forEach(([px,py], i) => i ? g.lineTo(px,py) : g.moveTo(px,py)); g.stroke();
+}
+function roundRect(x, y, w, h, r){ g.beginPath(); g.roundRect(x, y, w, h, r); }
+function text(s, x, y, size, color, align="left", font="hand"){
+  g.font = `${size}px ${font==="hand" ? '"Patrick Hand", "Comic Sans MS", cursive' : 'Inter, system-ui, sans-serif'}`;
+  g.fillStyle = color; g.textAlign = align; g.textBaseline = "middle"; g.fillText(s, x, y);
+}
+function clip(s, n){ return s.length > n ? s.slice(0, n-1) + "…" : s; }
+
+// ---------- agents ----------
+function ensureAgents(){
+  for (const r of ST.rooms) if (!agents[r.name]) {
+    const p = deskPos(r.name);
+    agents[r.name] = {room:r.name, x:p.x, y:p.y+40, tx:p.x, ty:p.y+40, color:COLORS[r.name], phase:Math.random()*6,
+      next:0, handoff:0, mode:"idle", dir:1};
+  }
+}
+function roomState(name){ return ST && ST.rooms.find(r => r.name === name); }
+
+function updateAgent(a, dt, now){
+  const st = roomState(a.room), r = rect(a.room), desk = deskPos(a.room);
+  if (!st) return;
+  if (st.paused) { a.mode = "sleep"; a.tx = desk.x; a.ty = desk.y + 30; }
+  else if (now < a.handoff) { a.mode = "walk"; }
+  else if (st.current) { a.mode = "work"; a.tx = desk.x; a.ty = desk.y + 30; }
+  else {
+    a.mode = "idle";
+    if (now > a.next) {
+      a.tx = r.x + 30 + Math.random() * (r.w - 60);
+      a.ty = r.y + 95 + Math.random() * (r.h - 125);
+      a.next = now + 2500 + Math.random() * 3500;
+    }
+  }
+  const dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy);
+  const speed = (a.mode === "work" || a.mode === "walk" ? 140 : 45) * dt;
+  a.moving = d > 1.5;
+  if (a.moving) { a.x += dx / d * Math.min(speed, d); a.y += dy / d * Math.min(speed, d); a.dir = dx < -0.3 ? -1 : dx > 0.3 ? 1 : a.dir; a.phase += dt * 10; }
+}
+
+function drawAgent(a, now){
+  const bob = a.mode === "work" ? Math.sin(now/90 + a.phase) * 1.5 : 0;
+  const x = a.x, y = a.y + bob, c = a.color;
+  g.fillStyle = "rgba(20,30,40,.13)"; g.beginPath(); g.ellipse(x, a.y + 16, 13, 4, 0, 0, Math.PI*2); g.fill();
+  // legs
+  const step = a.moving ? Math.sin(a.phase) * 4 : 0;
+  g.strokeStyle = "#18232f"; g.lineWidth = 3; g.lineCap = "round";
+  g.beginPath(); g.moveTo(x-4, y+8); g.lineTo(x-4+step, y+15); g.moveTo(x+4, y+8); g.lineTo(x+4-step, y+15); g.stroke();
+  // body
+  g.fillStyle = c; roundRect(x-10, y-8, 20, 18, 7); g.fill();
+  // arms
+  const arm = a.mode === "work" ? Math.sin(now/70 + a.phase) * 3 : (a.moving ? -step : 0);
+  g.strokeStyle = c; g.lineWidth = 4;
+  g.beginPath(); g.moveTo(x-9, y-2); g.lineTo(x-14, y+4+arm); g.moveTo(x+9, y-2); g.lineTo(x+14, y+4-arm); g.stroke();
+  // head
+  g.fillStyle = "#ffe3c9"; g.beginPath(); g.arc(x, y-17, 10, 0, Math.PI*2); g.fill();
+  g.strokeStyle = "#18232f"; g.lineWidth = 1.2; g.stroke();
+  g.fillStyle = c; g.beginPath(); g.arc(x, y-20, 10.5, Math.PI, Math.PI*2); g.fill();   // hair / cap
+  if (a.mode === "sleep") {
+    g.strokeStyle = "#18232f"; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(x-6, y-15); g.lineTo(x-2, y-15); g.moveTo(x+2, y-15); g.lineTo(x+6, y-15); g.stroke();
+    const t = (now/900) % 1; text("z", x + 12 + t*8, y - 26 - t*14, 13 + t*6, `rgba(24,35,47,${1-t})`);
+  } else {
+    const look = a.mode === "work" ? 0 : a.dir * 1.5, blink = (now/1000 + a.phase) % 4 < 0.12;
+    g.fillStyle = "#18232f";
+    if (blink) { g.fillRect(x-6+look, y-16, 4, 1.3); g.fillRect(x+2+look, y-16, 4, 1.3); }
+    else { g.beginPath(); g.arc(x-4+look, y-16, 1.8, 0, 7); g.arc(x+4+look, y-16, 1.8, 0, 7); g.fill(); }
+  }
+  text(NAMES[a.room], x, a.y + 26, 12, "#5d6b79", "center");
+}
+
+function drawBubble(name, now){
+  const a = agents[name], st = roomState(name); if (!a || !st) return;
+  let msg = null, warn = false;
+  const b = bubbles[name];
+  if (b && now < b.until) msg = b.text;
+  else if (st.paused) { msg = "paused"; warn = true; }
+  else if (st.waiting && st.queue > 0) { msg = st.waiting; warn = true; }
+  else if (st.current) msg = ["typing", "thinking", "working"][Math.floor(now/2200) % 3] + ".".repeat(1 + Math.floor(now/400) % 3);
+  if (!msg) return;
+  msg = clip(msg, 30);
+  g.font = '13px "Patrick Hand", "Comic Sans MS", cursive';
+  const w = Math.max(40, g.measureText(msg).width + 16), h = 22;
+  const r = rect(name);
+  const bx = Math.max(r.x + 4, Math.min(a.x - w/2, r.x + r.w - w - 4)), by = a.y - 58;
+  g.fillStyle = warn ? "#fdf0dc" : "#ffffff"; g.strokeStyle = warn ? "#b45f06" : "#18232f"; g.lineWidth = 1.3;
+  roundRect(bx, by, w, h, 8); g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(a.x - 5, by + h); g.lineTo(a.x, by + h + 7); g.lineTo(a.x + 5, by + h); g.fill();
+  text(msg, bx + w/2, by + h/2 + 1, 13, warn ? "#8a4a10" : "#18232f", "center");
+}
+
+// ---------- rooms ----------
+function paper(x, y, line, rot){
+  g.save(); g.translate(x, y); g.rotate(rot);
+  g.fillStyle = "#fff"; g.strokeStyle = "#9aa7b3"; g.lineWidth = 1;
+  g.fillRect(-8, -6, 16, 12); g.strokeRect(-8, -6, 16, 12);
+  g.fillStyle = line === "clients" ? "#d9a400" : "#0a8fdc"; g.fillRect(-8, -6, 16, 3);
+  g.restore();
+}
+function drawDesk(x, y, glow, color){
+  g.fillStyle = "#c9a77c"; roundRect(x-34, y-6, 68, 16, 3); g.fill();
+  g.fillStyle = "#2a3644"; roundRect(x-14, y-28, 28, 20, 3); g.fill();
+  g.fillStyle = glow ? color : "#4b5b6c"; g.fillRect(x-11, y-25, 22, 14);
+  if (glow) { g.fillStyle = "rgba(255,255,255,.7)"; for (let i = 0; i < 3; i++) g.fillRect(x-9, y-23 + i*4, 6 + ((performance.now()/120 + i*5) % 12), 1.5); }
+}
+function drawRoom(name, now){
+  const st = roomState(name); if (!st) return;
+  const r = rect(name), sel = name === selected;
+  g.fillStyle = st.paused ? "#eef0f3" : "#ffffff";
+  g.fillRect(r.x, r.y, r.w, r.h);
+  sketchRect(name, r.x, r.y, r.w, r.h, sel ? "#075f93" : "#0a8fdc", sel ? 5 : 3.5);
+  text(st.label, r.x + 12, r.y + 18, 22, "#0a8fdc");
+  if (st.paused) text("PAUSED", r.x + r.w - 12, r.y + 18, 15, "#b45f06", "right");
+  else if (st.cost_today > 0) text("$" + st.cost_today.toFixed(3), r.x + r.w - 12, r.y + 18, 13, "#5d6b79", "right", "ui");
+  const d = deskPos(name); drawDesk(d.x, d.y, !!st.current, COLORS[name]);
+  if (name === "control_room") {
+    const y = youDesk(), n = ST.awaiting.length, pulse = n ? (Math.sin(now/300)+1)/2 : 0;
+    if (n) { g.fillStyle = `rgba(232,131,58,${0.15 + pulse*0.2})`; g.beginPath(); g.ellipse(y.x, y.y + 6, 50, 30, 0, 0, 7); g.fill(); }
+    drawDesk(y.x, y.y, false, "#e8833a");
+    for (let i = 0; i < Math.min(n, 6); i++) paper(y.x + 22, y.y - 2 - i*3, ST.awaiting[i].line, (i%2 ? .08 : -.06));
+    text("your desk", y.x, y.y + 24, 13, "#e8833a", "center");
+    if (n) { g.fillStyle = "#e8833a"; g.beginPath(); g.arc(y.x + 34, y.y - 30, 11, 0, 7); g.fill(); text(String(n), y.x + 34, y.y - 29, 14, "#fff", "center"); }
+  }
+  // queue shelf
+  const q = st.queue - (st.current ? 1 : 0), s = shelfPos(name);
+  if (q > 0) {
+    for (let i = 0; i < Math.min(q, 5); i++) paper(s.x + i*3, s.y - i*3, st.line, (i%2 ? .1 : -.08));
+    text(q + " waiting", s.x + 26, s.y, 13, "#5d6b79");
+  }
+}
+
+// ---------- flights (cards moving between rooms) ----------
+function statusRoom(line, status){
+  if (status === "awaiting_you") return "you";
+  const r = ST.rooms.find(x => x.line === line && x.takes === status); return r ? r.name : null;
+}
+function lineOf(ev){
+  if (ev.room !== "you") { const r = roomState(ev.room); return r && r.line; }
+  const j = ST.jobs.find(x => x.id === ev.job_id); return j ? j.line : null;
+}
+function onEvent(ev, animate){
+  if (ev.room in agents && ["picked", "moved", "found", "skipped", "reply", "error"].includes(ev.kind))
+    bubbles[ev.room] = {text: ev.message.replace(/^picked up /, "on it: "), until: performance.now() + 3200};
+  if (!animate || reduced || !ST) return;
+  const line = lineOf(ev);
+  if (ev.kind === "moved") {
+    const from = ev.room === "you" ? (ev.data.to_status === "trend" ? null : "you") : ev.room;
+    const to = statusRoom(line, ev.data.to_status);
+    const start = from ? center(from) : {x: center(to || "control_room").x, y: -20};
+    if (to) {
+      flights.push({from: start, to: to === "you" ? youDesk() : shelfPos(to), t: 0, line, dur: 1.4});
+      if (agents[ev.room]) { const a = agents[ev.room], r = rect(ev.room), e = center(to);
+        a.tx = Math.max(r.x + 20, Math.min(e.x, r.x + r.w - 20)); a.ty = Math.max(r.y + 90, Math.min(e.y, r.y + r.h - 25)); a.handoff = performance.now() + 1400; }
+    } else {
+      const ok = ["posted", "sent"].includes(ev.data.to_status);
+      sparkles.push({x: start.x, y: start.y, t: 0, ok, line});
+    }
+  } else if (ev.kind === "found") {
+    const to = ev.room, s = shelfPos(to);
+    for (let i = 0; i < 4; i++) flights.push({from: {x: s.x + 60 + i*20, y: -20}, to: s, t: -i*0.2, line, dur: 1.2});
+  }
+}
+function drawFlights(dt){
+  for (let i = flights.length - 1; i >= 0; i--) {
+    const f = flights[i]; f.t += dt / f.dur;
+    if (f.t >= 1) { flights.splice(i, 1); continue; }
+    if (f.t < 0) continue;
+    const e = f.t < .5 ? 2*f.t*f.t : 1 - Math.pow(-2*f.t + 2, 2)/2;
+    const x = f.from.x + (f.to.x - f.from.x) * e, y = f.from.y + (f.to.y - f.from.y) * e - Math.sin(e*Math.PI) * 40;
+    g.fillStyle = "rgba(10,143,220,.15)"; g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill();
+    paper(x, y, f.line, Math.sin(f.t*12)*.3);
+  }
+  for (let i = sparkles.length - 1; i >= 0; i--) {
+    const s = sparkles[i]; s.t += dt / 1.6;
+    if (s.t >= 1) { sparkles.splice(i, 1); continue; }
+    g.globalAlpha = 1 - s.t;
+    paper(s.x, s.y - s.t*50, s.line, 0);
+    text(s.ok ? "✓" : "✕", s.x + 14, s.y - s.t*50 - 8, 22, s.ok ? "#2e9d5b" : "#d2463c", "center");
+    g.globalAlpha = 1;
+  }
+}
+
+// ---------- main draw loop ----------
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  g.setTransform(dpr*scale, 0, 0, dpr*scale, 0, 0);
+  g.fillStyle = "#f7f8fa"; g.fillRect(0, 0, L.W, L.H);
+  // floor grid
+  g.strokeStyle = "rgba(10,143,220,.07)"; g.lineWidth = 1;
+  for (let x = 0; x < L.W; x += 25) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, L.H); g.stroke(); }
+  for (let y = 0; y < L.H; y += 25) { g.beginPath(); g.moveTo(0, y); g.lineTo(L.W, y); g.stroke(); }
+  if (ST) {
+    const [wx, wy, ww, wh] = L.wing;
+    g.setLineDash([8, 7]); g.strokeStyle = "rgba(217,164,0,.6)"; g.lineWidth = 2; g.strokeRect(wx, wy, ww, wh); g.setLineDash([]);
+    text("3D CLIENTS WING", wx + ww/2, wy + 13, 15, "#a87f00", "center");
+    g.strokeStyle = "#0a8fdc"; g.lineWidth = 3; g.lineCap = "round";
+    for (const [a, b] of CORRIDORS) { const p = center(a), q = center(b); g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(q.x, q.y); g.stroke(); }
+    ensureAgents();
+    for (const name of Object.keys(L.rooms)) drawRoom(name, now);
+    const list = Object.values(agents).sort((a, b) => a.y - b.y);
+    for (const a of list) { updateAgent(a, dt, now); drawAgent(a, now); }
+    drawFlights(dt);
+    for (const name of Object.keys(L.rooms)) drawBubble(name, now);
+  } else text("Starting the factory…", L.W/2, L.H/2, 26, "#5d6b79", "center");
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+cv.addEventListener("click", e => {
+  const b = cv.getBoundingClientRect(), x = (e.clientX - b.left) / scale, y = (e.clientY - b.top) / scale;
+  const yd = youDesk();
+  if (ST && ST.awaiting.length && Math.hypot(x - yd.x, y - yd.y) < 50) { showTab("needs"); return; }
+  for (const name of Object.keys(L.rooms)) { const r = rect(name);
+    if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) { selected = name; renderRoom(); showTab("room"); return; } }
+});
+
+// ---------- panel ----------
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function showTab(name){
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === name));
+  for (const t of ["needs", "room", "log", "add"]) $("pane-" + t).hidden = t !== name;
+  if (name === "room") renderRoom();
+}
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+async function api(path, body){
+  const r = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body || {})});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || "Something went wrong");
+  return data;
+}
+
+let needsKey = "";
+function renderNeeds(){
+  const key = ST.awaiting.map(j => j.id).join(",");
+  $("needcount").textContent = ST.awaiting.length || "";
+  if (key === needsKey) return;
+  needsKey = key;
+  const pane = $("pane-needs");
+  if (!ST.awaiting.length) { pane.innerHTML = '<p class="empty">Nothing waits for you right now.<br>Finished videos and drafted emails will appear here for your approval.</p>'; return; }
+  pane.innerHTML = ST.awaiting.map(j => {
+    const d = j.data;
+    let body;
+    if (j.line === "shorts") {
+      const s = d.script || {};
+      body = `<span class="kind">Video · ${Math.round(d.duration || 0)}s · for YouTube Shorts and TikTok</span><h3>${esc(s.caption)}</h3>
+        <video controls playsinline preload="metadata" src="/media/${esc(d.video)}" poster="/media/${esc(d.thumb)}"></video>
+        <div>${esc((s.hashtags || []).join(" "))}</div><ol>${[s.hook, ...(s.lines || [])].map(l => `<li>${esc(l)}</li>`).join("")}</ol>`;
+    } else {
+      body = `<span class="kind">Offer email · ${esc(d.company)}</span><h3>${esc(d.subject)}</h3>
+        <div class="stat">To <b>${esc(d.email)}</b> · page checked: no 3D found</div><pre>${esc(d.body)}</pre>`;
+    }
+    return `<div class="card" data-id="${j.id}">${body}
+      <div class="row"><button class="btn primary" data-act="approve">${j.line === "shorts" ? "Approve for posting" : "Approve and send"}</button>
+      <input placeholder="Reason (optional)" aria-label="Reason for rejecting" id="note-${j.id}"><button class="btn danger" data-act="reject">Reject</button></div>
+      <span class="msg"></span></div>`;
+  }).join("");
+}
+$("pane-needs").addEventListener("click", async e => {
+  const btn = e.target.closest("button[data-act]"); if (!btn) return;
+  const card = btn.closest(".card"), id = card.dataset.id, msg = card.querySelector(".msg");
+  btn.disabled = true;
+  try {
+    if (btn.dataset.act === "approve") await api(`/api/jobs/${id}/approve`);
+    else await api(`/api/jobs/${id}/reject`, {note: $("note-" + id).value});
+    msg.className = "msg ok"; msg.textContent = btn.dataset.act === "approve" ? "Approved" : "Rejected";
+    poll();
+  } catch (err) { msg.className = "msg bad"; msg.textContent = err.message; btn.disabled = false; }
+});
+
+let roomKey = "";
+function renderRoom(force){
+  if (!ST) return;
+  const st = roomState(selected); if (!st) return;
+  const job = st.current && ST.jobs.find(j => j.id === st.current);
+  const evs = LOG.filter(e => e.room === selected).slice(0, 12);
+  const key = JSON.stringify([st, job && job.id, evs.map(e => e.id)]);
+  if (key === roomKey && !force) return; roomKey = key;
+  const status = st.paused ? "Paused" : st.current ? `Working on: ${esc(job ? job.title : "#" + st.current)}` : st.waiting && st.queue ? `Waiting: ${esc(st.waiting)}` : "Idle";
+  $("pane-room").innerHTML = `<div class="card">
+    <span class="kind">${st.line === "clients" ? "3D clients wing" : "Video line"} · agent ${NAMES[st.name]}</span>
+    <h3 style="font-family:var(--hand);font-size:24px;font-weight:400;color:${COLORS[st.name]}">${esc(st.label)}</h3>
+    <dl><dt>Status</dt><dd>${status}</dd><dt>Cards queued</dt><dd>${st.queue}</dd><dt>Takes cards in</dt><dd>${esc(st.takes)}</dd>
+    <dt>Model spend today</dt><dd>$${st.cost_today.toFixed(4)}</dd></dl>
+    <div class="row"><button class="btn" id="pausebtn">${st.paused ? "Resume room" : "Pause room"}</button></div></div>
+    <ul class="log">${evs.map(logItem).join("") || '<li><span></span><span></span><span class="empty" style="padding:6px 0">No activity yet</span></li>'}</ul>`;
+  $("pausebtn").onclick = async () => { await api(`/api/rooms/${st.name}/${st.paused ? "resume" : "pause"}`); poll(); };
+}
+
+const LOG = [];
+function label(room){ if (room === "you") return "You"; const r = roomState(room); return r ? r.label : room; }
+function logItem(e){
+  const t = new Date(e.ts * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+  return `<li><time>${t}</time><span class="dot" style="background:${COLORS[e.room] || "#999"}"></span>
+    <span><span class="who">${esc(label(e.room))}</span> <span class="${e.kind === "error" ? "err" : ""}">${esc(e.message)}</span>
+    ${e.cost > 0 ? `<span class="cost">$${e.cost.toFixed(4)}</span>` : ""}</span></li>`;
+}
+
+// ---------- polling ----------
+let lastEvent = null, loadedAt = Date.now() / 1000;
+async function poll(){
+  try {
+    const st = await (await fetch("/api/state")).json();
+    ST = st; $("offline").style.display = "none";
+    if (lastEvent === null) lastEvent = Math.max(0, st.last_event_id - 40);
+    const evs = await (await fetch(`/api/events?after=${lastEvent}`)).json();
+    for (const e of evs) {
+      lastEvent = e.id; LOG.unshift(e);
+      onEvent(e, e.ts > loadedAt);
+    }
+    if (LOG.length > 300) LOG.length = 300;
+    if (evs.length) $("log").innerHTML = LOG.slice(0, 120).map(logItem).join("");
+    const live = st.mode === "live";
+    $("mode").textContent = live ? "Live models" : "Test mode: free canned answers";
+    $("mode").className = "pill" + (live ? " live" : "");
+    $("mode").title = `Posting: ${st.publishing_live ? "LIVE" : "test (saved to outbox)"} · Email: ${st.outreach_live ? "LIVE" : "test (saved to outbox)"}`;
+    const pct = st.budget ? Math.min(100, st.cost_today / st.budget * 100) : 0;
+    $("spendbar").style.width = pct + "%"; $("spendbar").className = pct >= 90 ? "hot" : "";
+    $("spend").textContent = `$${st.cost_today.toFixed(2)} of $${st.budget.toFixed(2)}`;
+    $("posted").textContent = st.done_today.posted || 0; $("sent").textContent = st.done_today.sent || 0;
+    renderNeeds();
+    if (!$("pane-room").hidden) renderRoom();
+  } catch (err) { $("offline").style.display = "block"; }
+}
+poll(); setInterval(poll, 1000);
+
+// ---------- add forms ----------
+$("idea-form").addEventListener("submit", async e => {
+  e.preventDefault(); const m = $("idea-msg");
+  try { await api("/api/ideas", {title: $("idea-title").value}); m.className = "msg ok"; m.textContent = "Sent to Trend Finder"; $("idea-title").value = ""; poll(); }
+  catch (err) { m.className = "msg bad"; m.textContent = err.message; }
+});
+$("prospect-form").addEventListener("submit", async e => {
+  e.preventDefault(); const m = $("p-msg");
+  try { await api("/api/prospects", {company: $("p-company").value, product: $("p-product").value, url: $("p-url").value, email: $("p-email").value});
+    m.className = "msg ok"; m.textContent = "Sent to Client Finder"; e.target.reset(); poll(); }
+  catch (err) { m.className = "msg bad"; m.textContent = err.message; }
+});
+</script>
+</body>
+</html>

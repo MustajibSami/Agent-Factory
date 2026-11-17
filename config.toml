@@ -1,0 +1,65 @@
+# Agent Factory settings. Everything here is safe to change.
+
+[factory]
+pace_seconds = 2.5            # minimum time an agent spends on a job, so you can watch it work
+source_every_seconds = 15     # how often the finder rooms look for new material
+daily_budget_usd = 2.00       # all rooms stop calling paid models once today's spend reaches this
+
+[channel]
+niche = "3D art, product visualisation and design"
+platforms = ["youtube_shorts", "tiktok"]
+region = "US"
+max_videos_per_day = 4
+min_trend_score = 55
+banned_words = ["guaranteed", "free money", "giveaway"]
+
+[video]
+width = 720                   # 9:16 vertical. 1080 x 1920 is full quality but renders slower
+height = 1280
+fps = 24
+seconds_per_line = 3.5
+
+[publishing]
+live = false                  # false = write the post to var/outbox/posts instead of uploading
+
+[clients]
+prospects_file = "data/prospects.csv"
+
+[outreach]
+live = false                  # false = write .eml files to var/outbox/emails instead of sending
+daily_cap = 10
+sender_name = "Your Name"
+sender_business = "Your Studio"
+sender_address = "Your postal address"
+reply_to = "you@example.com"
+
+[llm]
+# "mock" = no model calls at all, canned answers, costs nothing. Use it to watch the factory run.
+# "live" = each task below uses its own provider and model.
+mode = "mock"
+ollama_url = "http://localhost:11434"
+
+# provider is "anthropic", "ollama" (local, on your GPU) or "mock".
+[llm.tasks.score_trend]
+provider = "anthropic"
+model = "claude-haiku-5-5"
+# To run this on your laptop instead: provider = "ollama", model = "llama3.1:8b" (any model you pulled)
+
+[llm.tasks.decide]
+provider = "anthropic"
+model = "claude-sonnet-5-5"
+
+[llm.tasks.write_script]
+provider = "anthropic"
+model = "claude-opus-5-5"
+
+[llm.tasks.write_offer]
+provider = "anthropic"
+model = "claude-sonnet-5-5"
+
+# USD per million tokens: [input, output]. Used for the cost meters.
+[llm.prices]
+"claude-fable-5-2" = [8.00, 40.00]
+"claude-opus-5-5" = [4.00, 20.00]
+"claude-sonnet-5-5" = [2.00, 10.00]
+"claude-haiku-5-5" = [0.10, 0.50]
